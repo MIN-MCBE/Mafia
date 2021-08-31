@@ -1,9 +1,0 @@
-name: LMine
-
-main: LMine\LMine
-
-author: min2228
-
-version: 2.0.21
-
-api: [3.0.0, 3.1.0, 4.0.0]
