@@ -163,7 +163,7 @@ class Mafia extends PluginBase implements Listener
     {
         $name = $player->getName();
 		if ($this->db["상태"] == "실행") {
-			if ($this->p[$name]["참가"]){
+			if (this->p[$name]["참가"] == "참가"){
 			$this->db["플레이어"][$this->p[$name]["번호"]]["이름"] = [];
 			}
         }
