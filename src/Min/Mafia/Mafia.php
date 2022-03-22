@@ -1,5 +1,8 @@
 <?php
-namespace Min;
+
+declare(strict_types=1);
+
+namespace Min\Mafia;
 
 use pocketmine\event\Listener;
 use pocketmine\network\mcpe\protocol\AddActorPacket;
@@ -21,11 +24,15 @@ use pocketmine\network\mcpe\protocol\ModalFormResponsePacket;
 use pocketmine\level\Position;
 use pocketmine\level\Explosion;
 use pocketmine\scheduler\Task;
+use skymin\data\Data;
 
-class Mafia extends PluginBase implements Listener
+final class Mafia extends PluginBase
 {
+    public static string $prefix = '§c〔 §f마피아 §c〕§f ';
 
-    //public $JobList = array("의사");
+    private Data $data;
+    private array $db;
+
     public $JobList = array("경찰", "마피아", "마피아", "의사", "군인", "기자", "시민", "시민");
     public $pp = array("플레이어1", "플레이어2", "플레이어3", "플레이어4", "플레이어5", "플레이어6", "플레이어7", "플레이어8");
     public $plist;
@@ -35,127 +42,18 @@ class Mafia extends PluginBase implements Listener
 	public $vlist;
 
     public function onEnable(): void{
-		$this->getServer()->getPluginManager()->registerEvents($this, $this);
         @mkdir($this->getDataFolder());
-        $this->data = (new Config($this->getDataFolder() . "Config.yml", Config::YAML, [
-            "상태" => "중지",//중지 실행 참가
-            "시간" => "없음", //투표 아침 저녁 반론
-			"반론자" => [
-			"사람" => []
-			],
-            "인원" => 0,
-			"투표" => [],
-			"최후" => [
-			"찬성" => 0,
-			"불찬성" => 0
-			],
-            "마피아팀" => [
-                "마피아" => [],
-                "선택한사람" => "없음"
-            ],
-            "시민팀" => [],
-            "사람" => [],
-            "의사선택" => [],
-            "기자선택" => [],
-            "기자갯수" => 1,
-            "군인갯수" => 1,
-			"경찰사용" => "없음",
-            "대기실" => [
-                "x" => 0,
-                "y" => 0,
-                "z" => 0,
-                "world" => "Lobby"
-            ],
-			"스폰" => [
-                "x" => 0,
-                "y" => 0,
-                "z" => 0,
-                "world" => "Lobby"
-            ],
-            "단두대" => [
-                "x" => 0,
-                "y" => 0,
-                "z" => 0,
-                "world" => "Lobby"
-            ],
-            "관중석" => [
-                "x" => 0,
-                "y" => 0,
-                "z" => 0,
-                "world" => "Lobby"
-            ],
-			"회의" => [
-                "x" => 0,
-                "y" => 0,
-                "z" => 0,
-                "world" => "Lobby"
-            ],
-            "플레이어" => [
-                "플레이어1" => [
-                    "x" => 0,
-                    "y" => 0,
-                    "z" => 0,
-                    "world" => "Lobby",
-                    "이름" => []
-                ],
-                "플레이어2" => [
-                    "x" => 0,
-                    "y" => 0,
-                    "z" => 0,
-                    "world" => "Lobby",
-                    "이름" => []
-                ],
-                "플레이어3" => [
-                    "x" => 0,
-                    "y" => 0,
-                    "z" => 0,
-                    "world" => "Lobby",
-                    "이름" => []
-                ],
-                "플레이어4" => [
-                    "x" => 0,
-                    "y" => 0,
-                    "z" => 0,
-                    "world" => "Lobby",
-                    "이름" => []
-                ],
-                "플레이어5" => [
-                    "x" => 0,
-                    "y" => 0,
-                    "z" => 0,
-                    "world" => "Lobby",
-                    "이름" => []
-                ],
-                "플레이어6" => [
-                    "x" => 0,
-                    "y" => 0,
-                    "z" => 0,
-                    "world" => "Lobby",
-                    "이름" => []
-                ],
-                "플레이어7" => [
-                    "x" => 0,
-                    "y" => 0,
-                    "z" => 0,
-                    "world" => "Lobby",
-                    "이름" => []
-                ],
-                "플레이어8" => [
-                    "x" => 0,
-                    "y" => 0,
-                    "z" => 0,
-                    "world" => "Lobby",
-                    "이름" => []
-                ]
-            ]
-        ]));
-        $this->db = $this->data->getAll();
+        $this->saveResource('data.json');
+        $this->data = new Data($this->getDataFolder() . '/data.json');
+        $this->db = $this->data->data;
         $this->player = new Config($this->getDataFolder() . "player.yml", Config::YAML);
         $this->p = $this->player->getAll();
     }
 
-    public function onDisable()
+    public function onDisable(): void
     {
+        $this->data->data = $this->db;
+        $this->data->save();
         $this->off();
     }
 
@@ -185,7 +83,6 @@ class Mafia extends PluginBase implements Listener
         $this->p[$name]["번호"] = "없음";
 		$this->p[$name]["투표"] = "안함";
 		$this->p[$name]["최후"] = "안함";
-        $this->save();
     }
 
     public function skillend()
@@ -193,7 +90,6 @@ class Mafia extends PluginBase implements Listener
         $this->db["마피아팀"]["선택한사람"] = "없음";
         $this->db["기자선택"]["사람"] = "없음";
         $this->db["의사선택"] = "없음";
-        $this->save();
     }
 
     public function skill()
@@ -206,7 +102,6 @@ class Mafia extends PluginBase implements Listener
 					}
                 
                 $this->db["기자갯수"] = 0;
-                $this->save();
             }
         }
         if ($this->db["마피아팀"]["선택한사람"] === $this->db["의사선택"] and $this->db["마피아팀"]["선택한사람"] != "없음" and $this->db["의사선택"] != "없음") {
@@ -235,7 +130,6 @@ class Mafia extends PluginBase implements Listener
 					$players->sendMessage("§c〔 §f마피아 §c〕§f 마피아의 공격을 군인 " . $this->db["마피아팀"]["선택한사람"] . "님이 방어했습니다");
 					}
 				$this->db["군인갯수"] = 0;
-				$this->save();
                 return true;
 				}
 		}
@@ -252,21 +146,17 @@ class Mafia extends PluginBase implements Listener
 				$this->db["인원"]--;
 				if (isset($this->db["마피아팀"]["마피아"][$ppp->getName()])) {
 					unset ($this->db["마피아팀"]["마피아"][$ppp->getName()]);
-            $this->save();
         }
 				if (isset($this->db["시민팀"]["시민들"][$ppp->getName()])) {
 					unset ($this->db["시민팀"]["시민들"][$ppp->getName()]);
-            $this->save();
         }
 				if (isset($this->db["사람"][$ppp->getName()])) {
 					unset ($this->db["사람"][$ppp->getName()]);
-            $this->save();
         }
 		foreach ($this->db["사람"] as $key => $type) {
 					$players = $this->getServer()->getPlayer($key);
 					$players->sendMessage("§c〔 §f마피아 §c〕§f " . $this->db["마피아팀"]["선택한사람"] . "님이 마피아의 의해 사망했습니다.");
 					}
-			$this->save();
             return true;
     }
     public function off()
@@ -313,16 +203,7 @@ class Mafia extends PluginBase implements Listener
         $this->JobList = array("경찰", "마피아", "마피아", "의사", "군인", "기자", "시민", "시민");
         $this->pp = array("플레이어1", "플레이어2", "플레이어3", "플레이어4", "플레이어5", "플레이어6", "플레이어7", "플레이어8");
         $this->skillend();
-        $this->save();
 		$this->getServer()->broadcastMessage("§c〔 §f마피아 §c〕§f 마피아가 끝났습니다");
-    }
-
-    public function save()
-    {
-        $this->data->setAll($this->db);
-        $this->data->save();
-        $this->player->setAll($this->p);
-        $this->player->save();
     }
 
     public function onJoin(PlayerJoinEvent $event)
@@ -337,7 +218,6 @@ class Mafia extends PluginBase implements Listener
 				"최후" => "안함",
                 "번호" => []
             ];
-            $this->save();
         }
     }
 	public function onChat(PlayerChatEvent $ev){
@@ -482,7 +362,6 @@ class Mafia extends PluginBase implements Listener
 			}
             $this->skillend();
             $this->db["시간"] = "저녁";
-            $this->save();
 			foreach ($this->db["사람"] as $key => $type) {
 					$players = $this->getServer()->getPlayer($key);
 					$players->sendMessage("§c〔 §f마피아 §c〕§f 밤이 되었습니다 §c60초 후에 아침이됩니다");
@@ -568,7 +447,6 @@ class Mafia extends PluginBase implements Listener
 					
 			}
 			$this->db["시간"] = "투표";
-			$this->save();
 			return true;
         }
     }
@@ -634,7 +512,6 @@ class Mafia extends PluginBase implements Listener
 			$players = $this->getServer()->getPlayer($key);
 		foreach($this->db["투표"]["사람"][$players->getName()] as $tu => $value){///////////
 		$this->db["투표"]["횟수"][$value][] = $players->getName();
-		$this->save();
 		}
 		}
 		if(count($this->db["투표"]["횟수"][$max]) >= 2){
@@ -647,7 +524,6 @@ class Mafia extends PluginBase implements Listener
 			return true;
 			}
 			$this->db["반론자"]["사람"] = $this->db["투표"]["횟수"][$max][0];
-		$this->save();
 		$this->banron();
 		return true;
     }
@@ -698,7 +574,6 @@ class Mafia extends PluginBase implements Listener
 			$this->skill();
 			$this->db["경찰사용"] = "없음";
             $this->db["시간"] = "아침";
-            $this->save();
 			return true;
         }
     }
@@ -748,7 +623,6 @@ class Mafia extends PluginBase implements Listener
 					$players->sendMessage("§c〔 §f마피아 §c〕§f {$this->db["반론자"]["사람"]}님의 최후의 반론! §c15초 후에 투표가 시작됩니다");
 					
 			}
-            $this->save();
         }
     }
 	public function bantop()
@@ -841,12 +715,10 @@ class Mafia extends PluginBase implements Listener
 		//
 		return true;
 		}
-		$this->save();
 	}
     public function gameSt()
     {
         $this->db["상태"] = "실행";
-        $this->save();
         $this->getServer()->broadcastMessage("§c〔 §f마피아 §c〕§f 마피아가 시작되었습니다.");
         foreach ($this->db['사람'] as $key => $type) {
             $players = $this->getServer()->getPlayer($key);
@@ -879,10 +751,8 @@ class Mafia extends PluginBase implements Listener
         $this->p[$name]["직업"] = $this->JobList[$rand];
         if ($this->JobList[$rand] == "마피아") {
             $this->db["마피아팀"]["마피아"][$player->getName()] = [];
-            $this->save();
         } else {
             $this->db["시민팀"]["시민들"][$player->getName()] = [];
-            $this->save();
         }
         unset($this->JobList[$rand]);
         $this->JobList = array_values($this->JobList);
@@ -896,7 +766,6 @@ class Mafia extends PluginBase implements Listener
         $rand1 = mt_rand(0, count($this->pp) - 1);
         $this->p[$name]["번호"] = $this->pp[$rand1];
         $this->db["플레이어"][$this->pp[$rand1]]["이름"] = $player->getName();
-        $this->save();
         unset($this->pp[$rand1]);
         $this->pp = array_values($this->pp);
         return true;
@@ -1236,7 +1105,6 @@ class Mafia extends PluginBase implements Listener
                         $this->db["인원"]++;
                         $this->db["사람"][$name] = [];
                         $player->teleport(new Vector3($this->db["대기실"]["x"], $this->db["대기실"]["y"], $this->db["대기실"]["z"], $this->db["대기실"]["world"]));
-                        $this->save();
                         $this->getServer()->broadcastMessage("§c〔 §f마피아 §c〕§f " . $name . "님이 마피아 게임에 참가하셨습니다. §c" . $this->db["인원"] . "/§c8");
 
                         if ($this->db["인원"] == /**/8) {
@@ -1340,7 +1208,6 @@ class Mafia extends PluginBase implements Listener
                     $this->db["대기실"]["x"] = $x;
                     $this->db["대기실"]["y"] = $y;
                     $this->db["대기실"]["z"] = $z;
-                    $this->save();
                     $player->sendMessage("§c〔 §f마피아 §c〕§f 대기실 위치가 설정되었습니다 §c" . $this->db["대기실"]["x"] . " " . $this->db["대기실"]["y"] . " " . $this->db["대기실"]["z"]);
                     return true;
                 }
@@ -1356,7 +1223,6 @@ class Mafia extends PluginBase implements Listener
                     $this->db["단두대"]["x"] = $x;
                     $this->db["단두대"]["y"] = $y;
                     $this->db["단두대"]["z"] = $z;
-                    $this->save();
                     $player->sendMessage("§c〔 §f마피아 §c〕§f 단두대 위치가 설정되었습니다 §c" . $this->db["단두대"]["x"] . " " . $this->db["단두대"]["y"] . " " . $this->db["단두대"]["z"]);
                     return true;
                 }
@@ -1369,7 +1235,6 @@ class Mafia extends PluginBase implements Listener
                     $this->db["관중석"]["x"] = $x;
                     $this->db["관중석"]["y"] = $y;
                     $this->db["관중석"]["z"] = $z;
-                    $this->save();
                     $player->sendMessage("§c〔 §f마피아 §c〕§f 관중석 위치가 설정되었습니다 §c" . $this->db["관중석"]["x"] . " " . $this->db["관중석"]["y"] . " " . $this->db["관중석"]["z"]);
                     return true;
                 }
@@ -1382,7 +1247,6 @@ class Mafia extends PluginBase implements Listener
                     $this->db["스폰"]["x"] = $x;
                     $this->db["스폰"]["y"] = $y;
                     $this->db["스폰"]["z"] = $z;
-                    $this->save();
                     $player->sendMessage("§c〔 §f마피아 §c〕§f 스폰 위치가 설정되었습니다 §c" . $this->db["관중석"]["x"] . " " . $this->db["관중석"]["y"] . " " . $this->db["관중석"]["z"]);
                     return true;
                 }
@@ -1395,7 +1259,6 @@ class Mafia extends PluginBase implements Listener
                     $this->db["회의"]["x"] = $x;
                     $this->db["회의"]["y"] = $y;
                     $this->db["회의"]["z"] = $z;
-                    $this->save();
                     $player->sendMessage("§c〔 §f마피아 §c〕§f 회의 위치가 설정되었습니다 §c" . $this->db["관중석"]["x"] . " " . $this->db["관중석"]["y"] . " " . $this->db["관중석"]["z"]);
                     return true;
                 }
@@ -1410,7 +1273,6 @@ class Mafia extends PluginBase implements Listener
                     $this->db["플레이어"]["플레이어1"]["y"] = $y;
                     $this->db["플레이어"]["플레이어1"]["z"] = $z;
 					$this->db["플레이어"]["플레이어1"]["world"] = $level;
-                    $this->save();
                     $player->sendMessage("§c〔 §f마피아 §c〕§f 집 위치가 설정되었습니다 §c" . $x . " " . $y . " " . $z);
                     return true;
                 }
@@ -1419,7 +1281,6 @@ class Mafia extends PluginBase implements Listener
                     $this->db["플레이어"]["플레이어2"]["y"] = $y;
                     $this->db["플레이어"]["플레이어2"]["z"] = $z;
 					$this->db["플레이어"]["플레이어2"]["world"] = $level;
-                    $this->save();
                     $player->sendMessage("§c〔 §f마피아 §c〕§f 집 위치가 설정되었습니다 §c" . $x . " " . $y . " " . $z);
                     return true;
                 }
@@ -1428,7 +1289,6 @@ class Mafia extends PluginBase implements Listener
                     $this->db["플레이어"]["플레이어3"]["y"] = $y;
                     $this->db["플레이어"]["플레이어3"]["z"] = $z;
 					$this->db["플레이어"]["플레이어3"]["world"] = $level;
-                    $this->save();
                     $player->sendMessage("§c〔 §f마피아 §c〕§f 집 위치가 설정되었습니다 §c" . $x . " " . $y . " " . $z);
                     return true;
                 }
@@ -1437,7 +1297,6 @@ class Mafia extends PluginBase implements Listener
                     $this->db["플레이어"]["플레이어4"]["y"] = $y;
                     $this->db["플레이어"]["플레이어4"]["z"] = $z;
 					$this->db["플레이어"]["플레이어4"]["world"] = $level;
-                    $this->save();
                     $player->sendMessage("§c〔 §f마피아 §c〕§f 집 위치가 설정되었습니다 §c" . $x . " " . $y . " " . $z);
                     return true;
                 }
@@ -1446,7 +1305,6 @@ class Mafia extends PluginBase implements Listener
                     $this->db["플레이어"]["플레이어5"]["y"] = $y;
                     $this->db["플레이어"]["플레이어5"]["z"] = $z;
 					$this->db["플레이어"]["플레이어5"]["world"] = $level;
-                    $this->save();
                     $player->sendMessage("§c〔 §f마피아 §c〕§f 집 위치가 설정되었습니다 §c" . $x . " " . $y . " " . $z);
                     return true;
                 }
@@ -1455,7 +1313,6 @@ class Mafia extends PluginBase implements Listener
                     $this->db["플레이어"]["플레이어6"]["y"] = $y;
                     $this->db["플레이어"]["플레이어6"]["z"] = $z;
 					$this->db["플레이어"]["플레이어6"]["world"] = $level;
-                    $this->save();
                     $player->sendMessage("§c〔 §f마피아 §c〕§f 집 위치가 설정되었습니다 §c" . $x . " " . $y . " " . $z);
                     return true;
                 }
@@ -1464,7 +1321,6 @@ class Mafia extends PluginBase implements Listener
                     $this->db["플레이어"]["플레이어7"]["y"] = $y;
                     $this->db["플레이어"]["플레이어7"]["z"] = $z;
 					$this->db["플레이어"]["플레이어7"]["world"] = $level;
-                    $this->save();
                     $player->sendMessage("§c〔 §f마피아 §c〕§f 집 위치가 설정되었습니다 §c" . $x . " " . $y . " " . $z);
                     return true;
                 }
@@ -1473,7 +1329,6 @@ class Mafia extends PluginBase implements Listener
                     $this->db["플레이어"]["플레이어8"]["y"] = $y;
                     $this->db["플레이어"]["플레이어8"]["z"] = $z;
 					$this->db["플레이어"]["플레이어8"]["world"] = $level;
-                    $this->save();
                     $player->sendMessage("§c〔 §f마피아 §c〕§f 집 위치가 설정되었습니다 §c" . $x . " " . $y . " " . $z);
                     return true;
                 }
@@ -1482,7 +1337,6 @@ class Mafia extends PluginBase implements Listener
                 if (is_null($a)) return true;
                 if (isset($this->dlist[$name][$a])) {
                     $this->db["의사선택"] = $this->dlist[$name][$a];
-                    $this->save();
                 }
             }
 			if ($id === 51235) {//기자
@@ -1494,7 +1348,6 @@ class Mafia extends PluginBase implements Listener
                 if (isset($this->rlist[$name][$a])) {
                     $this->db["기자선택"]["사람"] = $this->rlist[$name][$a];
 					$player->sendMessage("§c〔 §f마피아 §c〕§f " . $this->rlist[$name][$a] . "님을 선택했습니다");
-                    $this->save();
                 }
             }
             if ($id === 51236) {//마피아
@@ -1502,7 +1355,6 @@ class Mafia extends PluginBase implements Listener
                 if (isset($this->mlist[$name][$a])) {
                     $this->db["마피아팀"]["선택한사람"] = $this->mlist[$name][$a];
 					$player->sendMessage("§c〔 §f마피아 §c〕§f " . $this->mlist[$name][$a] . "님을 선택했습니다");
-                    $this->save();
                 }
             }
             if ($id === 51234) {//경찰
@@ -1512,7 +1364,6 @@ class Mafia extends PluginBase implements Listener
 					return true;
 				}
 				$this->db["경찰사용"] = "사용";
-				$this->save();
                 if ($this->p[$this->plist[$name][$a]]["직업"] == "마피아") {
                     $this->sendUI($player, 1341341, $this->msg("조사결과 : 마피아입니다"));
                 } else {
@@ -1533,7 +1384,6 @@ class Mafia extends PluginBase implements Listener
 					$players = $this->getServer()->getPlayer($key);
 					$players->sendMessage("§c〔 §f마피아 §c〕§f {$this->vlist[$name][$a]}님 한표!");
 					}
-                    $this->save();
 					return true;
                 }
             }
@@ -1546,7 +1396,6 @@ class Mafia extends PluginBase implements Listener
 				if($a === 0){
 					$player->sendMessage("§c〔 §f마피아 §c〕§f 죽이기를 선택하셨습니다");
 					$this->db["최후"]["찬성"]++;
-					$this->save();
 					return true;
 				}else if($a===1){
 					$player->sendMessage("§c〔 §f마피아 §c〕§f 죽이기를 선택하셨습니다");
